@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMotelStore } from '../store/useMotelStore';
 
 const ROOMS = [
   { id: 'r1', type: 'standard' },
@@ -7,9 +8,11 @@ const ROOMS = [
   { id: 'r4', type: 'standard' },
 ];
 
-const QUEUE = [{ id: 'marge_1', name: 'Marge', emoji: '😌' }];
-
 export default function HomeScreen() {
+  const queue = useMotelStore((s) => s.queue);
+  const selectedGuestId = useMotelStore((s) => s.selectedGuestId);
+  const selectGuest = useMotelStore((s) => s.selectGuest);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.topBar}>
@@ -19,12 +22,21 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Lobby Queue</Text>
       <View style={styles.queue}>
-        {QUEUE.map((guest) => (
-          <View key={guest.id} style={styles.guestCard}>
-            <Text style={styles.guestEmoji}>{guest.emoji}</Text>
-            <Text style={styles.guestName}>{guest.name}</Text>
-          </View>
-        ))}
+        {queue.map((guest) => {
+          const selected = guest.id === selectedGuestId;
+          return (
+            <Pressable
+              key={guest.id}
+              onPress={() => selectGuest(guest.id)}
+              style={[styles.guestCard, selected && styles.guestCardSelected]}
+            >
+              <Text style={styles.guestEmoji}>{guest.emoji}</Text>
+              <Text style={[styles.guestName, selected && styles.guestNameSelected]}>
+                {guest.name}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Text style={styles.sectionTitle}>Floor Plan</Text>
@@ -85,6 +97,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'center',
     gap: 4,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  guestCardSelected: {
+    backgroundColor: '#3a2e0a',
+    borderColor: '#c9a84c',
   },
   guestEmoji: {
     fontSize: 28,
@@ -92,6 +110,10 @@ const styles = StyleSheet.create({
   guestName: {
     color: '#e8d5b7',
     fontSize: 12,
+  },
+  guestNameSelected: {
+    color: '#c9a84c',
+    fontWeight: '700',
   },
   grid: {
     flexDirection: 'row',
