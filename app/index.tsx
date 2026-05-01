@@ -17,11 +17,9 @@ type RoomCardProps = {
   assignable: boolean;
   tipAmount: number | null;
   onPress: () => void;
-  onEventPress: () => void;
-  onCollectPress: () => void;
 };
 
-function RoomCard({ room, assignable, tipAmount, onPress, onEventPress, onCollectPress }: RoomCardProps) {
+function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
   const scale = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef<Animated.CompositeAnimation | null>(null);
   const floatOpacity = useRef(new Animated.Value(0)).current;
@@ -91,15 +89,15 @@ function RoomCard({ room, assignable, tipAmount, onPress, onEventPress, onCollec
         )}
 
         {isEvent && (
-          <Pressable style={styles.badgeEvent} onPress={onEventPress} hitSlop={10}>
+          <View style={styles.badgeEvent}>
             <Text style={styles.badgeEventText}>!</Text>
-          </Pressable>
+          </View>
         )}
 
         {isReady && (
-          <Pressable style={styles.badgeReady} onPress={onCollectPress} hitSlop={10}>
+          <View style={styles.badgeReady}>
             <Text style={styles.badgeReadyText}>💰</Text>
-          </Pressable>
+          </View>
         )}
 
         {tipAmount !== null && (
@@ -176,15 +174,18 @@ export default function HomeScreen() {
           <View key={rowIdx} style={styles.gridRow}>
             {row.map((room) => {
               const assignable = hasSelection && room.status === 'empty';
+              const handleRoomPress = () => {
+                if (room.status === 'event') setModalRoomId(room.id);
+                else if (room.status === 'ready') handleCollect(room);
+                else if (assignable) assignGuest(room.id);
+              };
               return (
                 <RoomCard
                   key={room.id}
                   room={room}
                   assignable={assignable}
                   tipAmount={tipAmounts[room.id] ?? null}
-                  onPress={() => assignable && assignGuest(room.id)}
-                  onEventPress={() => setModalRoomId(room.id)}
-                  onCollectPress={() => handleCollect(room)}
+                  onPress={handleRoomPress}
                 />
               );
             })}
