@@ -23,6 +23,7 @@ interface MotelState {
 
   hydrate: () => Promise<void>;
   save: () => Promise<void>;
+  resetGame: () => Promise<void>;
 }
 
 export const useMotelStore = create<MotelState>((set, get) => ({
@@ -151,5 +152,17 @@ export const useMotelStore = create<MotelState>((set, get) => ({
   save: async () => {
     const { gold, day, rooms, queue } = get();
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ gold, day, rooms, queue }));
+  },
+
+  resetGame: async () => {
+    await AsyncStorage.clear();
+    set({
+      gold: 100,
+      day: 1,
+      rooms: JSON.parse(JSON.stringify(INITIAL_ROOMS)),
+      queue: [],
+      selectedGuestId: null,
+    });
+    get().checkAndSpawn();
   },
 }));

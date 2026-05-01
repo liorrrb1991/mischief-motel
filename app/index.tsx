@@ -163,6 +163,7 @@ export default function HomeScreen() {
   const resolveEvent = useMotelStore((s) => s.resolveEvent);
   const collectTip = useMotelStore((s) => s.collectTip);
   const upgradeRoom = useMotelStore((s) => s.upgradeRoom);
+  const resetGame = useMotelStore((s) => s.resetGame);
 
   const [modalRoomId, setModalRoomId] = useState<string | null>(null);
   const [tipAmounts, setTipAmounts] = useState<Record<string, number | null>>({});
@@ -249,6 +250,10 @@ export default function HomeScreen() {
       {hasSelection && (
         <Text style={styles.assignHint}>Tap a glowing room to assign</Text>
       )}
+
+      <Pressable style={styles.resetButton} onPress={resetGame}>
+        <Text style={styles.resetButtonText}>🔄 Reset Game</Text>
+      </Pressable>
 
       <Modal
         visible={modalRoom !== null && modalRoom.pendingEvent !== null}
@@ -498,6 +503,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     opacity: 0.85,
+  },
+  resetButton: {
+    marginTop: 32,
+    alignSelf: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  resetButtonText: {
+    color: '#444',
+    fontSize: 12,
   },
   overlay: {
     flex: 1,
