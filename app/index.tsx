@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d2e2c',
   },
   roomEvent: {
-    backgroundColor: '#2e1515',
-    borderColor: '#e74c3c',
+    backgroundColor: '#f0c04020',
+    borderColor: '#f0c040',
   },
   roomReady: {
     backgroundColor: '#2e2a16',
@@ -443,12 +443,12 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#f0c040',
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeEventText: {
-    color: '#fff',
+    color: '#1a1a2e',
     fontSize: 14,
     fontWeight: '800',
     lineHeight: 16,
