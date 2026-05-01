@@ -1,5 +1,69 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMotelStore } from '../store/useMotelStore';
+import { Room } from '../store/types';
+
+type RoomCardProps = {
+  room: Room;
+  assignable: boolean;
+  onPress: () => void;
+};
+
+function RoomCard({ room, assignable, onPress }: RoomCardProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const animation = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (assignable) {
+      animation.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.03, duration: 600, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.0, duration: 600, useNativeDriver: true }),
+        ])
+      );
+      animation.current.start();
+    } else {
+      animation.current?.stop();
+      animation.current = null;
+      Animated.timing(scale, { toValue: 1.0, duration: 150, useNativeDriver: true }).start();
+    }
+    return () => {
+      animation.current?.stop();
+    };
+  }, [assignable]);
+
+  const isEmpty = room.status === 'empty';
+
+  return (
+    <Pressable onPress={onPress}>
+      <Animated.View
+        style={[
+          styles.room,
+          assignable && styles.roomAssignable,
+          { transform: [{ scale }] },
+        ]}
+      >
+        <Text style={styles.roomId}>{room.id}</Text>
+
+        {room.occupiedBy ? (
+          <Text style={styles.roomGuestEmoji}>{room.occupiedBy.emoji}</Text>
+        ) : (
+          <Text style={styles.roomType}>{room.type}</Text>
+        )}
+
+        {isEmpty && (
+          <Text style={[styles.roomHint, assignable && styles.roomHintAssignable]}>
+            {assignable ? 'tap to assign' : 'empty'}
+          </Text>
+        )}
+
+        {!isEmpty && room.occupiedBy && (
+          <Text style={styles.roomOccupantName}>{room.occupiedBy.name}</Text>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
   const queue = useMotelStore((s) => s.queue);
@@ -39,39 +103,21 @@ export default function HomeScreen() {
       <Text style={styles.sectionTitle}>Floor Plan</Text>
       <View style={styles.grid}>
         {rooms.map((room) => {
-          const isEmpty = room.status === 'empty';
-          const assignable = hasSelection && isEmpty;
-
+          const assignable = hasSelection && room.status === 'empty';
           return (
-            <Pressable
+            <RoomCard
               key={room.id}
+              room={room}
+              assignable={assignable}
               onPress={() => assignable && assignGuest(room.id)}
-              style={[
-                styles.room,
-                assignable && styles.roomAssignable,
-              ]}
-            >
-              <Text style={styles.roomId}>{room.id}</Text>
-
-              {room.occupiedBy ? (
-                <Text style={styles.roomGuestEmoji}>{room.occupiedBy.emoji}</Text>
-              ) : (
-                <Text style={styles.roomType}>{room.type}</Text>
-              )}
-
-              {isEmpty && (
-                <Text style={[styles.roomHint, assignable && styles.roomHintAssignable]}>
-                  {assignable ? 'tap to assign' : 'empty'}
-                </Text>
-              )}
-
-              {!isEmpty && room.occupiedBy && (
-                <Text style={styles.roomOccupantName}>{room.occupiedBy.name}</Text>
-              )}
-            </Pressable>
+            />
           );
         })}
       </View>
+
+      {hasSelection && (
+        <Text style={styles.assignHint}>Tap a glowing room to assign</Text>
+      )}
     </ScrollView>
   );
 }
@@ -84,6 +130,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingTop: 48,
+    paddingBottom: 32,
   },
   topBar: {
     flexDirection: 'row',
@@ -154,8 +201,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   roomAssignable: {
-    backgroundColor: '#2e2a16',
-    borderColor: '#c9a84c',
+    backgroundColor: '#0d2e2c',
+    borderColor: '#4ecdc4',
   },
   roomId: {
     color: '#888',
@@ -183,6 +230,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   roomHintAssignable: {
-    color: '#c9a84c',
+    color: '#4ecdc4',
+  },
+  assignHint: {
+    color: '#4ecdc4',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 20,
+    opacity: 0.85,
   },
 });

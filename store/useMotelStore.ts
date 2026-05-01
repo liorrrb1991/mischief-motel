@@ -101,9 +101,20 @@ export const useMotelStore = create<MotelState>((set, get) => ({
   },
 
   spawnGuest: () => {
-    const { queue } = get();
+    const { queue, rooms } = get();
     if (queue.length >= MAX_QUEUE) return;
-    const template = GUEST_TEMPLATES[Math.floor(Math.random() * GUEST_TEMPLATES.length)];
+
+    const activeTemplateIds = new Set<string>([
+      ...queue.map((g) => g.id.substring(0, g.id.lastIndexOf('_'))),
+      ...rooms
+        .filter((r) => r.occupiedBy !== null)
+        .map((r) => r.occupiedBy!.id.substring(0, r.occupiedBy!.id.lastIndexOf('_'))),
+    ]);
+
+    const available = GUEST_TEMPLATES.filter((t) => !activeTemplateIds.has(t.id));
+    if (available.length === 0) return;
+
+    const template = available[Math.floor(Math.random() * available.length)];
     const guest: Guest = { ...template, id: `${template.id}_${Date.now()}` };
     set({ queue: [...queue, guest] });
   },
