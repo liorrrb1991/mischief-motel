@@ -19,6 +19,7 @@ interface MotelState {
   collectTip: (roomId: string) => void;
   spawnGuest: () => void;
   checkAndSpawn: () => void;
+  upgradeRoom: (roomId: string) => void;
 
   hydrate: () => Promise<void>;
   save: () => Promise<void>;
@@ -123,6 +124,19 @@ export const useMotelStore = create<MotelState>((set, get) => ({
     if (get().queue.length < 2) {
       get().spawnGuest();
     }
+  },
+
+  upgradeRoom: (roomId) => {
+    const { gold, rooms } = get();
+    const room = rooms.find((r) => r.id === roomId && r.status === 'empty' && r.type === 'standard');
+    if (!room || gold < 100) return;
+    set({
+      gold: gold - 100,
+      rooms: rooms.map((r) =>
+        r.id === roomId ? { ...r, type: 'cozy', lighting: 'dark' } : r
+      ),
+    });
+    get().save();
   },
 
   hydrate: async () => {

@@ -16,14 +16,18 @@ type RoomCardProps = {
   room: Room;
   assignable: boolean;
   tipAmount: number | null;
+  showPerfectMatch: boolean;
+  gold: number;
   onPress: () => void;
+  onUpgrade: () => void;
 };
 
-function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
+function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress, onUpgrade }: RoomCardProps) {
   const glowAnim = useRef(new Animated.Value(0.4)).current;
   const glowLoop = useRef<Animated.CompositeAnimation | null>(null);
   const floatOpacity = useRef(new Animated.Value(0)).current;
   const floatY = useRef(new Animated.Value(0)).current;
+  const matchOpacity = useRef(new Animated.Value(0)).current;
 
   const animatedBorderColor = glowAnim.interpolate({
     inputRange: [0.4, 1.0],
@@ -48,6 +52,13 @@ function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
   }, [assignable]);
 
   useEffect(() => {
+    if (showPerfectMatch) {
+      matchOpacity.setValue(1);
+      Animated.timing(matchOpacity, { toValue: 0, duration: 1500, useNativeDriver: true }).start();
+    }
+  }, [showPerfectMatch]);
+
+  useEffect(() => {
     if (tipAmount !== null) {
       floatOpacity.setValue(1);
       floatY.setValue(0);
@@ -68,6 +79,7 @@ function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
       <Animated.View
         style={[
           styles.room,
+          room.type === 'cozy' && styles.roomCozy,
           assignable && styles.roomAssignable,
           assignable && { borderColor: animatedBorderColor },
           isEvent && styles.roomEvent,
@@ -82,13 +94,28 @@ function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
             <Text style={styles.roomOccupantName}>{room.occupiedBy!.name}</Text>
           </View>
         ) : (
-          <Text style={styles.roomType}>{room.type}</Text>
+          <Text style={styles.roomType}>
+            {room.type === 'cozy' ? '🌙 Cozy' : 'Standard'}
+          </Text>
         )}
 
         {isEmpty ? (
-          <Text style={[styles.roomHint, assignable && styles.roomHintAssignable]}>
-            {assignable ? 'tap to assign' : 'empty'}
-          </Text>
+          <View style={styles.roomBottom}>
+            <Text style={[styles.roomHint, assignable && styles.roomHintAssignable]}>
+              {assignable ? 'tap to assign' : 'empty'}
+            </Text>
+            {room.type === 'standard' && (
+              <Pressable
+                style={[styles.upgradeButton, gold < 100 && styles.upgradeButtonDisabled]}
+                onPress={onUpgrade}
+                disabled={gold < 100}
+              >
+                <Text style={[styles.upgradeButtonText, gold < 100 && styles.upgradeButtonTextDisabled]}>
+                  ✨ Upgrade to Cozy (100g)
+                </Text>
+              </Pressable>
+            )}
+          </View>
         ) : (
           <View />
         )}
@@ -113,6 +140,13 @@ function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
             <Text style={styles.floatingTipText}>+{tipAmount} gold</Text>
           </Animated.View>
         )}
+
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.floatingMatchContainer, { opacity: matchOpacity }]}
+        >
+          <Text style={styles.floatingMatchText}>✨ Perfect match!</Text>
+        </Animated.View>
       </Animated.View>
     </Pressable>
   );
@@ -128,9 +162,11 @@ export default function HomeScreen() {
   const assignGuest = useMotelStore((s) => s.assignGuest);
   const resolveEvent = useMotelStore((s) => s.resolveEvent);
   const collectTip = useMotelStore((s) => s.collectTip);
+  const upgradeRoom = useMotelStore((s) => s.upgradeRoom);
 
   const [modalRoomId, setModalRoomId] = useState<string | null>(null);
   const [tipAmounts, setTipAmounts] = useState<Record<string, number | null>>({});
+  const [perfectMatches, setPerfectMatches] = useState<Record<string, boolean>>({});
 
   const hasSelection = selectedGuestId !== null;
   const modalRoom = modalRoomId ? (rooms.find((r) => r.id === modalRoomId) ?? null) : null;
@@ -182,7 +218,16 @@ export default function HomeScreen() {
               const handleRoomPress = () => {
                 if (room.status === 'event') setModalRoomId(room.id);
                 else if (room.status === 'ready') handleCollect(room);
-                else if (assignable) assignGuest(room.id);
+                else if (assignable) {
+                  const selectedGuest = queue.find((g) => g.id === selectedGuestId);
+                  if (selectedGuest?.type === 'supernatural' && room.type === 'cozy') {
+                    setPerfectMatches((prev) => ({ ...prev, [room.id]: true }));
+                    setTimeout(() => {
+                      setPerfectMatches((prev) => ({ ...prev, [room.id]: false }));
+                    }, 1700);
+                  }
+                  assignGuest(room.id);
+                }
               };
               return (
                 <RoomCard
@@ -190,7 +235,10 @@ export default function HomeScreen() {
                   room={room}
                   assignable={assignable}
                   tipAmount={tipAmounts[room.id] ?? null}
+                  showPerfectMatch={perfectMatches[room.id] ?? false}
+                  gold={gold}
                   onPress={handleRoomPress}
+                  onUpgrade={() => upgradeRoom(room.id)}
                 />
               );
             })}
@@ -319,6 +367,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
+  roomCozy: {
+    backgroundColor: '#2d1b69',
+  },
   roomAssignable: {
     backgroundColor: '#0d2e2c',
   },
@@ -356,12 +407,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
+  roomBottom: {
+    gap: 6,
+  },
   roomHint: {
     color: '#555',
     fontSize: 12,
   },
   roomHintAssignable: {
     color: '#4ecdc4',
+  },
+  upgradeButton: {
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#7a6a2a',
+    alignSelf: 'flex-start',
+  },
+  upgradeButtonDisabled: {
+    borderColor: '#444',
+  },
+  upgradeButtonText: {
+    color: '#a08030',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  upgradeButtonTextDisabled: {
+    color: '#555',
   },
   badgeEvent: {
     position: 'absolute',
@@ -403,6 +476,18 @@ const styles = StyleSheet.create({
     color: '#c9a84c',
     fontWeight: '700',
     fontSize: 16,
+  },
+  floatingMatchContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  floatingMatchText: {
+    color: '#c8a0ff',
+    fontWeight: '700',
+    fontSize: 13,
   },
   assignHint: {
     color: '#4ecdc4',
