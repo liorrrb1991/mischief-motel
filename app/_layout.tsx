@@ -1,6 +1,5 @@
 import { Stack } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMotelStore } from '../store/useMotelStore';
 
 export default function RootLayout() {
@@ -8,7 +7,7 @@ export default function RootLayout() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    AsyncStorage.clear().then(() => hydrate()).then(() => {
+    hydrate().then(() => {
       const state = useMotelStore.getState();
       console.log('[MischiefMotel] Initial state after hydrate:', JSON.stringify({
         gold: state.gold,
