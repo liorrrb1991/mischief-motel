@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useEffect, useRef } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { useMotelStore } from '../store/useMotelStore';
 
 export default function RootLayout() {
@@ -51,5 +52,10 @@ export default function RootLayout() {
     };
   }, []);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
+  );
 }
