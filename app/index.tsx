@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMotelStore } from '../store/useMotelStore';
-import { Room } from '../store/types';
+import { Guest, Room } from '../store/types';
 
 function calcTip(room: Room): number {
   if (!room.occupiedBy) return 0;
@@ -10,6 +10,35 @@ function calcTip(room: Room): number {
   const lighting = guest.prefersLighting === 'any' || guest.prefersLighting === room.lighting ? 1.3 : 1.0;
   const event = room.chosenMultiplier ?? 1.0;
   return Math.round(guest.baseTip * roomMatch * lighting * event);
+}
+
+function GuestCard({ guest, selected, onPress }: { guest: Guest; selected: boolean; onPress: () => void }) {
+  const slideX = useRef(new Animated.Value(80)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideX, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <Pressable onPress={onPress}>
+      <Animated.View
+        style={[
+          styles.guestCard,
+          selected && styles.guestCardSelected,
+          { opacity, transform: [{ translateX: slideX }] },
+        ]}
+      >
+        <Text style={styles.guestEmoji}>{guest.emoji}</Text>
+        <Text style={[styles.guestName, selected && styles.guestNameSelected]}>
+          {guest.name}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
 }
 
 type RoomCardProps = {
@@ -23,16 +52,32 @@ type RoomCardProps = {
 };
 
 function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress, onUpgrade }: RoomCardProps) {
+  // JS driver — border color + bounce share same Animated.View
   const glowAnim = useRef(new Animated.Value(0.4)).current;
   const glowLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const bounceAnim = useRef(new Animated.Value(1)).current;
+
+  const prevStatusRef = useRef(room.status);
+  const showPerfectMatchRef = useRef(false);
+
+  // Native driver — child Animated.Views are independent
   const floatOpacity = useRef(new Animated.Value(0)).current;
   const floatY = useRef(new Animated.Value(0)).current;
+  const floatScale = useRef(new Animated.Value(1)).current;
   const matchOpacity = useRef(new Animated.Value(0)).current;
+  const matchY = useRef(new Animated.Value(0)).current;
+  const badgePulseAnim = useRef(new Animated.Value(1)).current;
+  const badgePulseLoop = useRef<Animated.CompositeAnimation | null>(null);
 
   const animatedBorderColor = glowAnim.interpolate({
     inputRange: [0.4, 1.0],
     outputRange: ['rgba(78, 205, 196, 0.4)', 'rgba(78, 205, 196, 1.0)'],
   });
+
+  // Sync ref before bounce effect reads it — both fire after same render, in order
+  useEffect(() => {
+    showPerfectMatchRef.current = showPerfectMatch;
+  }, [showPerfectMatch]);
 
   useEffect(() => {
     if (assignable) {
@@ -52,9 +97,56 @@ function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress
   }, [assignable]);
 
   useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = room.status;
+
+    if (prev === 'empty' && room.status === 'occupied') {
+      if (showPerfectMatchRef.current) {
+        Animated.sequence([
+          Animated.timing(bounceAnim, { toValue: 1.2, duration: 150, useNativeDriver: false }),
+          Animated.timing(bounceAnim, { toValue: 0.9, duration: 100, useNativeDriver: false }),
+          Animated.timing(bounceAnim, { toValue: 1.05, duration: 200, useNativeDriver: false }),
+          Animated.timing(bounceAnim, { toValue: 1.0, duration: 150, useNativeDriver: false }),
+        ]).start();
+      } else {
+        Animated.sequence([
+          Animated.timing(bounceAnim, { toValue: 1.12, duration: 120, useNativeDriver: false }),
+          Animated.timing(bounceAnim, { toValue: 0.95, duration: 120, useNativeDriver: false }),
+          Animated.timing(bounceAnim, { toValue: 1.0, duration: 160, useNativeDriver: false }),
+        ]).start();
+      }
+    }
+  }, [room.status]);
+
+  useEffect(() => {
+    if (room.status === 'event') {
+      badgePulseAnim.setValue(1);
+      badgePulseLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(badgePulseAnim, { toValue: 1.2, duration: 400, useNativeDriver: true }),
+          Animated.timing(badgePulseAnim, { toValue: 1.0, duration: 400, useNativeDriver: true }),
+        ])
+      );
+      badgePulseLoop.current.start();
+    } else {
+      badgePulseLoop.current?.stop();
+      badgePulseLoop.current = null;
+      badgePulseAnim.setValue(1);
+    }
+    return () => { badgePulseLoop.current?.stop(); };
+  }, [room.status]);
+
+  useEffect(() => {
     if (showPerfectMatch) {
-      matchOpacity.setValue(1);
-      Animated.timing(matchOpacity, { toValue: 0, duration: 1500, useNativeDriver: true }).start();
+      matchOpacity.setValue(0);
+      matchY.setValue(0);
+      setTimeout(() => {
+        matchOpacity.setValue(1);
+        Animated.parallel([
+          Animated.timing(matchOpacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
+          Animated.timing(matchY, { toValue: -30, duration: 1000, useNativeDriver: true }),
+        ]).start();
+      }, 600);
     }
   }, [showPerfectMatch]);
 
@@ -62,9 +154,14 @@ function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress
     if (tipAmount !== null) {
       floatOpacity.setValue(1);
       floatY.setValue(0);
+      floatScale.setValue(0.5);
       Animated.parallel([
-        Animated.timing(floatOpacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
-        Animated.timing(floatY, { toValue: -40, duration: 1000, useNativeDriver: true }),
+        Animated.timing(floatOpacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
+        Animated.timing(floatY, { toValue: -60, duration: 1200, useNativeDriver: true }),
+        Animated.sequence([
+          Animated.timing(floatScale, { toValue: 1.3, duration: 350, useNativeDriver: true }),
+          Animated.timing(floatScale, { toValue: 1.0, duration: 850, useNativeDriver: true }),
+        ]),
       ]).start();
     }
   }, [tipAmount]);
@@ -84,6 +181,7 @@ function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress
           assignable && { borderColor: animatedBorderColor },
           isEvent && styles.roomEvent,
           isReady && styles.roomReady,
+          { transform: [{ scale: bounceAnim }] },
         ]}
       >
         <Text style={styles.roomId}>{room.id}</Text>
@@ -121,9 +219,9 @@ function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress
         )}
 
         {isEvent && (
-          <View style={styles.badgeEvent}>
+          <Animated.View style={[styles.badgeEvent, { transform: [{ scale: badgePulseAnim }] }]}>
             <Text style={styles.badgeEventText}>!</Text>
-          </View>
+          </Animated.View>
         )}
 
         {isReady && (
@@ -135,7 +233,10 @@ function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress
         {tipAmount !== null && (
           <Animated.View
             pointerEvents="none"
-            style={[styles.floatingTipContainer, { opacity: floatOpacity, transform: [{ translateY: floatY }] }]}
+            style={[
+              styles.floatingTipContainer,
+              { opacity: floatOpacity, transform: [{ translateY: floatY }, { scale: floatScale }] },
+            ]}
           >
             <Text style={styles.floatingTipText}>+{tipAmount} gold</Text>
           </Animated.View>
@@ -143,7 +244,7 @@ function RoomCard({ room, assignable, tipAmount, showPerfectMatch, gold, onPress
 
         <Animated.View
           pointerEvents="none"
-          style={[styles.floatingMatchContainer, { opacity: matchOpacity }]}
+          style={[styles.floatingMatchContainer, { opacity: matchOpacity, transform: [{ translateY: matchY }] }]}
         >
           <Text style={styles.floatingMatchText}>✨ Perfect match!</Text>
         </Animated.View>
@@ -169,6 +270,20 @@ export default function HomeScreen() {
   const [tipAmounts, setTipAmounts] = useState<Record<string, number | null>>({});
   const [perfectMatches, setPerfectMatches] = useState<Record<string, boolean>>({});
 
+  const goldScale = useRef(new Animated.Value(1)).current;
+  const prevGoldRef = useRef(gold);
+
+  useEffect(() => {
+    if (gold !== prevGoldRef.current) {
+      prevGoldRef.current = gold;
+      goldScale.setValue(1);
+      Animated.sequence([
+        Animated.timing(goldScale, { toValue: 1.3, duration: 150, useNativeDriver: true }),
+        Animated.timing(goldScale, { toValue: 1.0, duration: 150, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [gold]);
+
   const hasSelection = selectedGuestId !== null;
   const modalRoom = modalRoomId ? (rooms.find((r) => r.id === modalRoomId) ?? null) : null;
 
@@ -179,7 +294,7 @@ export default function HomeScreen() {
       setTipAmounts((prev) => ({ ...prev, [room.id]: amount }));
       setTimeout(() => {
         setTipAmounts((prev) => ({ ...prev, [room.id]: null }));
-      }, 1100);
+      }, 1300);
     },
     [collectTip]
   );
@@ -187,7 +302,9 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.topBar}>
-        <Text style={styles.topBarText}>💰 Gold: {gold}</Text>
+        <Animated.Text style={[styles.topBarText, { transform: [{ scale: goldScale }] }]}>
+          💰 Gold: {gold}
+        </Animated.Text>
         <Text style={styles.topBarText}>Day: {day}</Text>
       </View>
 
@@ -196,16 +313,12 @@ export default function HomeScreen() {
         {queue.map((guest) => {
           const selected = guest.id === selectedGuestId;
           return (
-            <Pressable
+            <GuestCard
               key={guest.id}
+              guest={guest}
+              selected={selected}
               onPress={() => selectGuest(guest.id)}
-              style={[styles.guestCard, selected && styles.guestCardSelected]}
-            >
-              <Text style={styles.guestEmoji}>{guest.emoji}</Text>
-              <Text style={[styles.guestName, selected && styles.guestNameSelected]}>
-                {guest.name}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -481,9 +594,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   floatingTipText: {
-    color: '#c9a84c',
+    color: '#f0c040',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 20,
   },
   floatingMatchContainer: {
     position: 'absolute',
@@ -493,7 +606,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   floatingMatchText: {
-    color: '#c8a0ff',
+    color: '#c9a84c',
     fontWeight: '700',
     fontSize: 13,
   },
