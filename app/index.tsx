@@ -1,17 +1,14 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMotelStore } from '../store/useMotelStore';
 
-const ROOMS = [
-  { id: 'r1', type: 'standard' },
-  { id: 'r2', type: 'standard' },
-  { id: 'r3', type: 'standard' },
-  { id: 'r4', type: 'standard' },
-];
-
 export default function HomeScreen() {
   const queue = useMotelStore((s) => s.queue);
+  const rooms = useMotelStore((s) => s.rooms);
   const selectedGuestId = useMotelStore((s) => s.selectedGuestId);
   const selectGuest = useMotelStore((s) => s.selectGuest);
+  const assignGuest = useMotelStore((s) => s.assignGuest);
+
+  const hasSelection = selectedGuestId !== null;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -41,13 +38,39 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Floor Plan</Text>
       <View style={styles.grid}>
-        {ROOMS.map((room) => (
-          <View key={room.id} style={styles.room}>
-            <Text style={styles.roomId}>{room.id}</Text>
-            <Text style={styles.roomType}>{room.type}</Text>
-            <Text style={styles.roomHint}>tap to assign</Text>
-          </View>
-        ))}
+        {rooms.map((room) => {
+          const isEmpty = room.status === 'empty';
+          const assignable = hasSelection && isEmpty;
+
+          return (
+            <Pressable
+              key={room.id}
+              onPress={() => assignable && assignGuest(room.id)}
+              style={[
+                styles.room,
+                assignable && styles.roomAssignable,
+              ]}
+            >
+              <Text style={styles.roomId}>{room.id}</Text>
+
+              {room.occupiedBy ? (
+                <Text style={styles.roomGuestEmoji}>{room.occupiedBy.emoji}</Text>
+              ) : (
+                <Text style={styles.roomType}>{room.type}</Text>
+              )}
+
+              {isEmpty && (
+                <Text style={[styles.roomHint, assignable && styles.roomHintAssignable]}>
+                  {assignable ? 'tap to assign' : 'empty'}
+                </Text>
+              )}
+
+              {!isEmpty && room.occupiedBy && (
+                <Text style={styles.roomOccupantName}>{room.occupiedBy.name}</Text>
+              )}
+            </Pressable>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -127,6 +150,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     justifyContent: 'space-between',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  roomAssignable: {
+    backgroundColor: '#2e2a16',
+    borderColor: '#c9a84c',
   },
   roomId: {
     color: '#888',
@@ -141,8 +170,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'capitalize',
   },
-  roomHint: {
-    color: '#c9a84c',
+  roomGuestEmoji: {
+    fontSize: 36,
+    textAlign: 'center',
+  },
+  roomOccupantName: {
+    color: '#e8d5b7',
     fontSize: 12,
+  },
+  roomHint: {
+    color: '#555',
+    fontSize: 12,
+  },
+  roomHintAssignable: {
+    color: '#c9a84c',
   },
 });
