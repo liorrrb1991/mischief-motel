@@ -35,7 +35,7 @@ function RoomCard({ room, assignable, onPress }: RoomCardProps) {
   const isEmpty = room.status === 'empty';
 
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={onPress} style={styles.roomWrapper}>
       <Animated.View
         style={[
           styles.room,
@@ -102,17 +102,21 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Floor Plan</Text>
       <View style={styles.grid}>
-        {rooms.map((room) => {
-          const assignable = hasSelection && room.status === 'empty';
-          return (
-            <RoomCard
-              key={room.id}
-              room={room}
-              assignable={assignable}
-              onPress={() => assignable && assignGuest(room.id)}
-            />
-          );
-        })}
+        {[rooms.slice(0, 2), rooms.slice(2, 4)].map((row, rowIdx) => (
+          <View key={rowIdx} style={styles.gridRow}>
+            {row.map((room) => {
+              const assignable = hasSelection && room.status === 'empty';
+              return (
+                <RoomCard
+                  key={room.id}
+                  room={room}
+                  assignable={assignable}
+                  onPress={() => assignable && assignGuest(room.id)}
+                />
+              );
+            })}
+          </View>
+        ))}
       </View>
 
       {hasSelection && (
@@ -186,13 +190,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   grid: {
+    gap: 10,
+  },
+  gridRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
+  },
+  roomWrapper: {
+    flex: 1,
   },
   room: {
-    width: '47%',
-    aspectRatio: 1,
+    flex: 1,
+    height: 160,
     backgroundColor: '#2a2a3e',
     borderRadius: 8,
     padding: 12,
