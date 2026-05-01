@@ -374,12 +374,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d2e2c',
   },
   roomEvent: {
-    backgroundColor: '#f0c04020',
+    backgroundColor: '#f0c04015',
     borderColor: '#f0c040',
   },
   roomReady: {
-    backgroundColor: '#2e2a16',
-    borderColor: '#c9a84c',
+    backgroundColor: '#4caf5015',
+    borderColor: '#4caf50',
   },
   roomId: {
     color: '#888',
@@ -455,15 +455,18 @@ const styles = StyleSheet.create({
   },
   badgeReady: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 28,
-    height: 28,
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4caf50',
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeReadyText: {
-    fontSize: 20,
+    fontSize: 14,
+    lineHeight: 16,
   },
   floatingTipContainer: {
     position: 'absolute',
