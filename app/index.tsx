@@ -505,14 +505,17 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   resetButton: {
-    marginTop: 32,
+    marginTop: 24,
     alignSelf: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: '#e57373',
+    borderRadius: 8,
   },
   resetButtonText: {
-    color: '#444',
-    fontSize: 12,
+    color: '#e57373',
+    fontSize: 14,
   },
   overlay: {
     flex: 1,
