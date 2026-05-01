@@ -20,26 +20,31 @@ type RoomCardProps = {
 };
 
 function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef<Animated.CompositeAnimation | null>(null);
+  const glowAnim = useRef(new Animated.Value(0.4)).current;
+  const glowLoop = useRef<Animated.CompositeAnimation | null>(null);
   const floatOpacity = useRef(new Animated.Value(0)).current;
   const floatY = useRef(new Animated.Value(0)).current;
 
+  const animatedBorderColor = glowAnim.interpolate({
+    inputRange: [0.4, 1.0],
+    outputRange: ['rgba(78, 205, 196, 0.4)', 'rgba(78, 205, 196, 1.0)'],
+  });
+
   useEffect(() => {
     if (assignable) {
-      pulseAnim.current = Animated.loop(
+      glowLoop.current = Animated.loop(
         Animated.sequence([
-          Animated.timing(scale, { toValue: 1.03, duration: 600, useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1.0, duration: 600, useNativeDriver: true }),
+          Animated.timing(glowAnim, { toValue: 1.0, duration: 600, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0.4, duration: 600, useNativeDriver: false }),
         ])
       );
-      pulseAnim.current.start();
+      glowLoop.current.start();
     } else {
-      pulseAnim.current?.stop();
-      pulseAnim.current = null;
-      Animated.timing(scale, { toValue: 1.0, duration: 150, useNativeDriver: true }).start();
+      glowLoop.current?.stop();
+      glowLoop.current = null;
+      glowAnim.setValue(0.4);
     }
-    return () => { pulseAnim.current?.stop(); };
+    return () => { glowLoop.current?.stop(); };
   }, [assignable]);
 
   useEffect(() => {
@@ -64,9 +69,9 @@ function RoomCard({ room, assignable, tipAmount, onPress }: RoomCardProps) {
         style={[
           styles.room,
           assignable && styles.roomAssignable,
+          assignable && { borderColor: animatedBorderColor },
           isEvent && styles.roomEvent,
           isReady && styles.roomReady,
-          { transform: [{ scale }] },
         ]}
       >
         <Text style={styles.roomId}>{room.id}</Text>
@@ -316,7 +321,6 @@ const styles = StyleSheet.create({
   },
   roomAssignable: {
     backgroundColor: '#0d2e2c',
-    borderColor: '#4ecdc4',
   },
   roomEvent: {
     backgroundColor: '#2e1515',
